@@ -43,12 +43,22 @@
 
 <section class="panel">
 <div class="section-title">国家队跟踪ETF总持仓市值 vs 沪深300 / 创业板走势</div>
-<div class="hint">橙线：你提供的报表所跟踪全部宽基ETF合计市值（亿元，左轴）；蓝线：沪深300；紫线：创业板指（右轴，均以首个交易日=100归一化）。按源报表每日更新，历史约5年。</div>
+<div class="hint">橙线：全部跟踪ETF合计持仓市值（亿元，左轴）；蓝线：沪深300真实收盘点位；紫线：创业板指真实收盘点位（右轴）。指数不做归一化，按源报表每日更新。</div>
 <div id="nationalTeamChart" class="chart"></div>
 <div class="hint" id="nationalTeamStatus">正在读取全部跟踪ETF持仓市值及指数日线……</div>
+<div class="section-title" style="margin-top:18px">国家队ETF每日净流入 / 净流出</div>
+<div class="hint">按跟踪ETF份额日变化×当日单位净值汇总，红色为净买入（流入），绿色为净卖出（流出），单位：亿元。不是持仓市值的日涨跌。</div>
+<div id="nationalTeamFlowChart" class="chart"></div>
+<div class="hint" id="nationalTeamFlowStatus">等待每日净买卖数据……</div>
+<div style="overflow-x:auto;margin-top:10px">
+<table id="nationalTeamFlowTable" style="width:100%;border-collapse:collapse;min-width:360px;font-size:12px">
+<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">日期</th><th style="padding:8px">每日净流入 / 净流出（亿元）</th><th style="padding:8px">方向</th></tr></thead>
+<tbody><tr><td colspan="3" style="padding:12px;color:#91a0ba">等待数据</td></tr></tbody>
+</table>
+</div>
 <div style="overflow-x:auto;margin-top:10px">
 <table id="nationalTeamTable" style="width:100%;border-collapse:collapse;min-width:560px;font-size:12px">
-<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">日期</th><th style="padding:8px">全部跟踪ETF市值（亿元）</th><th style="padding:8px">较前日市值变化（亿元）</th><th style="padding:8px">沪深300</th><th style="padding:8px">创业板指</th></tr></thead>
+<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">日期</th><th style="padding:8px">全部跟踪ETF市值（亿元）</th><th style="padding:8px">较前日市值变化（亿元）</th><th style="padding:8px">沪深300真实点位</th><th style="padding:8px">创业板指真实点位</th></tr></thead>
 <tbody><tr><td colspan="5" style="padding:12px;color:#91a0ba">等待数据</td></tr></tbody>
 </table>
 </div>
@@ -59,7 +69,7 @@
 </main>
 <script>
 const API='https://push2his.eastmoney.com/api/qt/stock/kline/get',TOKEN='7eea3edcaed734bea9cbfc24409ed989';
-const charts={overview:echarts.init(document.getElementById('overview')),vxn:echarts.init(document.getElementById('vxnChart')),vix:echarts.init(document.getElementById('vixChart')),nationalTeam:echarts.init(document.getElementById('nationalTeamChart'))};
+const charts={overview:echarts.init(document.getElementById('overview')),vxn:echarts.init(document.getElementById('vxnChart')),vix:echarts.init(document.getElementById('vixChart')),nationalTeam:echarts.init(document.getElementById('nationalTeamChart')),nationalTeamFlow:echarts.init(document.getElementById('nationalTeamFlowChart'))};
 let data=[],period='10';
 async function fetchDaily(secid){const url=API+'?secid='+secid+'&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&klt=101&fqt=0&beg=20161031&end=20500101&lmt=10000&ut='+TOKEN+'&_='+Date.now();const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const json=await res.json();if(!json?.data?.klines)throw Error('指数 '+secid+' 未返回数据');return json.data.klines.map(s=>{const a=s.split(',');return {date:a[0],open:+a[1],close:+a[2],high:+a[3],low:+a[4]}}).filter(x=>x.date&&[x.open,x.close,x.high,x.low].every(v=>v>0&&Number.isFinite(v)))}
 async function fetchVolatilityDaily(symbol){const url='./data/'+symbol+'.json?v='+Date.now();const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error(symbol+'本地行情文件 HTTP '+res.status);const rows=await res.json();if(!Array.isArray(rows)||rows.length<100)throw Error(symbol+'历史数据不足：'+(rows?.length||0)+'行');return rows.filter(x=>x.date&&[x.open,x.high,x.low,x.close].every(v=>Number.isFinite(Number(v))&&Number(v)>0)).map(x=>({date:x.date,open:+x.open,high:+x.high,low:+x.low,close:+x.close})).sort((a,b)=>a.date.localeCompare(b.date))}
@@ -69,12 +79,13 @@ function drawVolatility(chart,rows,indexRows,title,indexTitle){const p=window.sl
 let vxnData=[],vixData=[],ndxData=[],spxData=[];
 async function loadVolatility(){for(const item of [{symbol:'VXN',indexSymbol:'NDX',key:'vxn',chart:charts.vxn,title:'VXN 纳指100恐慌指数',indexTitle:'纳斯达克100指数'},{symbol:'VIX',indexSymbol:'SPX',key:'vix',chart:charts.vix,title:'VIX 标普500恐慌指数',indexTitle:'标普500指数'}]){const status=document.getElementById(item.key+'Status');try{status.textContent='正在读取 '+item.symbol+' 与 '+item.indexTitle+' 日线……';const [rows,indexRows]=await Promise.all([fetchVolatilityDaily(item.symbol),fetchVolatilityDaily(item.indexSymbol)]);if(rows.length<100||indexRows.length<100)throw Error('返回历史数据数量不足');if(item.key==='vxn'){vxnData=rows;ndxData=indexRows;document.getElementById('vxnLatest').textContent=rows[rows.length-1].close.toFixed(2);document.getElementById('vxnLatestDate').textContent='最新交易日：'+rows[rows.length-1].date}else{vixData=rows;spxData=indexRows;document.getElementById('vixLatest').textContent=rows[rows.length-1].close.toFixed(2);document.getElementById('vixLatestDate').textContent='最新交易日：'+rows[rows.length-1].date}drawVolatility(item.chart,rows,indexRows,item.symbol,item.indexTitle);status.className='ok';status.textContent='加载成功：'+item.symbol+' '+rows.length+' 根日K；'+item.indexTitle+' '+indexRows.length+' 个交易日。左轴为恐慌指数，右轴为对应市场指数；最新交易日 '+rows[rows.length-1].date+'。数据源：GitHub后台同步数据。'}catch(e){status.className='err';status.textContent='加载失败：'+e.message+'。'}}}
 
-let nationalTeamRows=[];
+let nationalTeamRows=[],nationalTeamFlowRows=[];
 async function loadNationalTeam(){
  const st=document.getElementById('nationalTeamStatus');
+ const flowSt=document.getElementById('nationalTeamFlowStatus');
  try{
   st.className='';
-  st.textContent='正在读取全部跟踪ETF持仓市值及沪深300、创业板日线……';
+  st.textContent='正在读取全部跟踪ETF持仓市值及沪深300、创业板真实点位……';
   const [holdRes,csiRows,cybRows]=await Promise.all([
    fetch('./data/national-team-etf.json?v='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('国家队ETF历史文件 HTTP '+r.status);return r.json()}),
    fetchDaily('1.000300'),
@@ -85,13 +96,20 @@ async function loadNationalTeam(){
   const cybMap=new Map(cybRows.map(x=>[x.date,x.close]));
   nationalTeamRows=holdRes.series.map(x=>({date:x.d,value:+x.v,csi:csiMap.get(x.d),cyb:cybMap.get(x.d)})).filter(x=>x.date&&Number.isFinite(x.value)&&x.csi>0&&x.cyb>0).sort((a,b)=>a.date.localeCompare(b.date));
   if(nationalTeamRows.length<100)throw Error('ETF与两个指数的共同交易日不足');
-  const csiBase=nationalTeamRows[0].csi,cybBase=nationalTeamRows[0].cyb;
-  nationalTeamRows.forEach(x=>{x.csi100=x.csi/csiBase*100;x.cyb100=x.cyb/cybBase*100});
+  nationalTeamFlowRows=Array.isArray(holdRes.flows)?holdRes.flows.map(x=>({date:x.d,value:+x.v})).filter(x=>x.date&&Number.isFinite(x.value)).sort((a,b)=>a.date.localeCompare(b.date)):[];
   renderNationalTeam();
   const last=nationalTeamRows[nationalTeamRows.length-1];
   st.className='ok';
   st.textContent='加载成功：'+(holdRes.etf_count||'全部')+'只跟踪ETF；'+nationalTeamRows.length+'个共同交易日；最新日期 '+last.date+'；合计市值 '+last.value.toFixed(1)+'亿元。';
- }catch(e){st.className='err';st.textContent='加载失败：'+e.message+'。'}
+  if(nationalTeamFlowRows.length){
+   const fLast=nationalTeamFlowRows[nationalTeamFlowRows.length-1];
+   flowSt.className='ok';
+   flowSt.textContent='每日净买卖数据已加载：'+nationalTeamFlowRows.length+'个交易日；最新 '+fLast.date+'：'+(fLast.value>=0?'净流入 ':'净流出 ')+Math.abs(fLast.value).toFixed(2)+'亿元。';
+  }else{
+   flowSt.className='err';
+   flowSt.textContent='当前数据文件尚未包含每日净流入/净流出；等待下一次后台同步。';
+  }
+ }catch(e){st.className='err';st.textContent='加载失败：'+e.message+'。';flowSt.className='err';flowSt.textContent='每日净买卖数据暂不可用。'}
 }
 function renderNationalTeam(){
  let rows=nationalTeamRows;
@@ -103,14 +121,29 @@ function renderNationalTeam(){
  opt.tooltip={trigger:'axis',axisPointer:{type:'cross'},valueFormatter:v=>Number(v).toFixed(2)};
  opt.yAxis=[
   {type:'value',scale:true,name:'ETF合计市值（亿元）',nameTextStyle:{color:'#f5ad55'},axisLabel:{color:'#f5ad55'},splitLine:{lineStyle:{color:'#293956',type:'dashed'}}},
-  {type:'value',scale:true,name:'指数走势（首日=100）',position:'right',nameTextStyle:{color:'#48c8e8'},axisLabel:{color:'#48c8e8'},splitLine:{show:false}}
+  {type:'value',scale:true,name:'指数真实点位',position:'right',nameTextStyle:{color:'#48c8e8'},axisLabel:{color:'#48c8e8'},splitLine:{show:false}}
  ];
  opt.series=[
-  {name:'全部跟踪ETF合计市值',type:'line',yAxisIndex:0,data:rows.map(x=>x.value),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#f5ad55'}},
-  {name:'沪深300（归一化）',type:'line',yAxisIndex:1,data:rows.map(x=>+x.csi100.toFixed(2)),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#48c8e8'}},
-  {name:'创业板指（归一化）',type:'line',yAxisIndex:1,data:rows.map(x=>+x.cyb100.toFixed(2)),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#b58cff'}}
+  {name:'全部跟踪ETF合计市值（亿元）',type:'line',yAxisIndex:0,data:rows.map(x=>x.value),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#f5ad55'}},
+  {name:'沪深300真实点位',type:'line',yAxisIndex:1,data:rows.map(x=>+x.csi.toFixed(2)),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#48c8e8'}},
+  {name:'创业板指真实点位',type:'line',yAxisIndex:1,data:rows.map(x=>+x.cyb.toFixed(2)),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#b58cff'}}
  ];
  charts.nationalTeam.setOption(opt,true);
+
+ let flowRows=nationalTeamFlowRows;
+ if(period!=='all'&&flowRows.length&&rows.length)flowRows=flowRows.filter(x=>x.date>=rows[0].date);
+ const fopt=commonOption(flowRows.map(x=>x.date),55);
+ fopt.grid={left:64,right:24,top:24,bottom:58};
+ fopt.tooltip={trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>(Number(v)>0?'+':'')+Number(v).toFixed(2)+'亿元'};
+ fopt.yAxis={type:'value',name:'净买卖（亿元）',scale:true,axisLabel:{color:'#91a0ba'},splitLine:{lineStyle:{color:'#293956',type:'dashed'}}};
+ fopt.series=[{name:'每日净买入 / 净卖出',type:'bar',data:flowRows.map(x=>({value:x.value,itemStyle:{color:x.value>=0?'#ef7777':'#69c9a5'}})),barMaxWidth:14}];
+ charts.nationalTeamFlow.setOption(fopt,true);
+ const recentFlows=nationalTeamFlowRows.slice(-20).reverse();
+ document.querySelector('#nationalTeamFlowTable tbody').innerHTML=recentFlows.map(x=>{
+  const positive=x.value>=0,amount=(positive?'+':'')+x.value.toFixed(2);
+  return '<tr style="border-bottom:1px solid #293956;text-align:right"><td style="padding:8px;text-align:left">'+x.date+'</td><td style="padding:8px;color:'+(positive?'#ef7777':'#69c9a5')+'">'+amount+'</td><td style="padding:8px;color:'+(positive?'#ef7777':'#69c9a5')+'">'+(positive?'净流入':'净流出')+'</td></tr>';
+ }).join('')||'<tr><td colspan="3" style="padding:12px;color:#91a0ba">尚无每日净买卖数据</td></tr>';
+
  const recent=nationalTeamRows.slice(-20).reverse();
  document.querySelector('#nationalTeamTable tbody').innerHTML=recent.map((x,i)=>{
   const original=nationalTeamRows.length-1-i;
