@@ -51,15 +51,9 @@
 <div id="nationalTeamFlowChart" class="chart"></div>
 <div class="hint" id="nationalTeamFlowStatus">等待每日净买卖数据……</div>
 <div style="overflow-x:auto;margin-top:10px">
-<table id="nationalTeamFlowTable" style="width:100%;border-collapse:collapse;min-width:360px;font-size:12px">
-<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">日期</th><th style="padding:8px">每日净流入 / 净流出（亿元）</th><th style="padding:8px">方向</th></tr></thead>
-<tbody><tr><td colspan="3" style="padding:12px;color:#91a0ba">等待数据</td></tr></tbody>
-</table>
-</div>
-<div style="overflow-x:auto;margin-top:10px">
-<table id="nationalTeamTable" style="width:100%;border-collapse:collapse;min-width:560px;font-size:12px">
-<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">日期</th><th style="padding:8px">全部跟踪ETF市值（亿元）</th><th style="padding:8px">较前日市值变化（亿元）</th><th style="padding:8px">沪深300真实点位</th><th style="padding:8px">创业板指真实点位</th></tr></thead>
-<tbody><tr><td colspan="5" style="padding:12px;color:#91a0ba">等待数据</td></tr></tbody>
+<table id="nationalTeamTable" style="width:100%;border-collapse:collapse;min-width:760px;font-size:12px">
+<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">日期</th><th style="padding:8px">全部跟踪ETF市值（亿元）</th><th style="padding:8px">较前日市值变化（亿元）</th><th style="padding:8px">每日净流入 / 净流出（亿元）</th><th style="padding:8px">资金方向</th><th style="padding:8px">沪深300真实点位</th><th style="padding:8px">创业板指真实点位</th></tr></thead>
+<tbody><tr><td colspan="7" style="padding:12px;color:#91a0ba">等待数据</td></tr></tbody>
 </table>
 </div>
 <div class="hint" style="margin-top:10px">统计口径：直接采用你提供的“国家队ETF每日净买入/净卖出”报表中累计持仓金额曲线，汇总该报表当期纳入的全部ETF（当前源网页已扩展至29只，名单变化会自动跟随）。该金额为跟踪ETF份额×单位净值的合计市值，是国家队资金动向的代理观察指标，不等于中央汇金实时、完整的真实持仓；市值日变化同时受ETF申赎和价格涨跌影响，不可直接视为净买入金额。每日净申购/赎回请以原网页明细为准。</div>
@@ -138,12 +132,7 @@ function renderNationalTeam(){
  fopt.yAxis={type:'value',name:'净买卖（亿元）',scale:true,axisLabel:{color:'#91a0ba'},splitLine:{lineStyle:{color:'#293956',type:'dashed'}}};
  fopt.series=[{name:'每日净买入 / 净卖出',type:'bar',data:flowRows.map(x=>({value:x.value,itemStyle:{color:x.value>=0?'#ef7777':'#69c9a5'}})),barMaxWidth:14}];
  charts.nationalTeamFlow.setOption(fopt,true);
- const recentFlows=nationalTeamFlowRows.slice(-20).reverse();
- document.querySelector('#nationalTeamFlowTable tbody').innerHTML=recentFlows.map(x=>{
-  const positive=x.value>=0,amount=(positive?'+':'')+x.value.toFixed(2);
-  return '<tr style="border-bottom:1px solid #293956;text-align:right"><td style="padding:8px;text-align:left">'+x.date+'</td><td style="padding:8px;color:'+(positive?'#ef7777':'#69c9a5')+'">'+amount+'</td><td style="padding:8px;color:'+(positive?'#ef7777':'#69c9a5')+'">'+(positive?'净流入':'净流出')+'</td></tr>';
- }).join('')||'<tr><td colspan="3" style="padding:12px;color:#91a0ba">尚无每日净买卖数据</td></tr>';
-
+ const flowMap=new Map(nationalTeamFlowRows.map(x=>[x.date,x.value]));
  const recent=nationalTeamRows.slice(-20).reverse();
  document.querySelector('#nationalTeamTable tbody').innerHTML=recent.map((x,i)=>{
   const original=nationalTeamRows.length-1-i;
@@ -151,8 +140,12 @@ function renderNationalTeam(){
   const delta=prev===null?null:x.value-prev;
   const deltaText=delta===null?'—':(delta>0?'+':'')+delta.toFixed(1);
   const deltaColor=delta===null?'#91a0ba':delta>=0?'#ef7777':'#69c9a5';
-  return '<tr style="border-bottom:1px solid #293956;text-align:right"><td style="padding:8px;text-align:left">'+x.date+'</td><td style="padding:8px">'+x.value.toFixed(1)+'</td><td style="padding:8px;color:'+deltaColor+'">'+deltaText+'</td><td style="padding:8px">'+x.csi.toFixed(2)+'</td><td style="padding:8px">'+x.cyb.toFixed(2)+'</td></tr>';
- }).join('');
+  const flow=flowMap.get(x.date);
+  const flowText=flow===undefined?'—':((flow>=0?'+':'')+flow.toFixed(2));
+  const flowColor=flow===undefined?'#91a0ba':flow>=0?'#ef7777':'#69c9a5';
+  const direction=flow===undefined?'—':(flow>=0?'净流入':'净流出');
+  return '<tr style="border-bottom:1px solid #293956;text-align:right"><td style="padding:8px;text-align:left">'+x.date+'</td><td style="padding:8px">'+x.value.toFixed(1)+'</td><td style="padding:8px;color:'+deltaColor+'">'+deltaText+'</td><td style="padding:8px;color:'+flowColor+'">'+flowText+'</td><td style="padding:8px;color:'+flowColor+'">'+direction+'</td><td style="padding:8px">'+x.csi.toFixed(2)+'</td><td style="padding:8px">'+x.cyb.toFixed(2)+'</td></tr>';
+ }).join('')||'<tr><td colspan="7" style="padding:12px;color:#91a0ba">尚无数据</td></tr>';
 }
 function visibleData(){if(period==='all')return data;const d=new Date(data[data.length-1].date+'T12:00:00');d.setFullYear(d.getFullYear()-Number(period));const s=d.toISOString().slice(0,10);const i=data.findIndex(x=>x.date>=s);return data.slice(Math.max(0,i))}
 function commonOption(dates,gridBottom=48){return {animation:false,tooltip:{trigger:'axis'},grid:{left:58,right:18,top:18,bottom:gridBottom},xAxis:{type:'category',data:dates,axisLabel:{color:'#91a0ba',hideOverlap:true}},dataZoom:[{type:'inside'},{type:'slider',height:15,bottom:8}],backgroundColor:'transparent'}}
