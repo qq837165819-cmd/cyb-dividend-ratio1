@@ -1,6 +1,10 @@
 name: Build first-board premium backtest
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "scripts/build_first_board_premium.py"
+      - ".github/workflows/first-board-premium.yml"
   schedule:
     - cron: "40 12 * * 6"
 permissions:
