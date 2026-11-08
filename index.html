@@ -40,12 +40,26 @@
 <div class="hint" id="vixStatus">正在加载 VIX 历史日线……</div>
 </section>
 
+
+<section class="panel">
+<div class="section-title">国家队沪深300ETF持仓 vs 沪深300指数｜半年报/年报</div>
+<div class="hint">橙线：国家队已识别持仓估算市值（四只沪深300ETF合计，亿元，左轴）；蓝线：沪深300指数走势（首期归一化为100，右轴）。表格列出各报告期持仓与指数数据。</div>
+<div id="nationalTeamChart" class="chart"></div>
+<div class="hint" id="nationalTeamStatus">正在读取国家队ETF持仓及沪深300指数……</div>
+<div style="overflow-x:auto;margin-top:10px">
+<table id="nationalTeamTable" style="width:100%;border-collapse:collapse;min-width:620px;font-size:12px">
+<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">报告期</th><th style="padding:8px">持仓估算市值（亿元）</th><th style="padding:8px">持有份额（亿份）</th><th style="padding:8px">持有占比</th><th style="padding:8px">沪深300收盘</th><th style="padding:8px">指数归一化</th></tr></thead>
+<tbody><tr><td colspan="6" style="padding:12px;color:#91a0ba">等待数据</td></tr></tbody>
+</table>
+</div>
+<div class="hint" style="margin-top:10px">口径说明：国家队仅统计四只沪深300ETF定期报告前十大持有人中明确披露的中央汇金、中国证券金融账户，属于可识别下限；未进入前十不代表没有持仓。持仓市值按报告期持有份额×ETF当日收盘价估算，非官方公布总市值。持有人数据半年披露一次，当前来源最新报告期为2025-12-31；2019年以前无法完整识别的区间留空，不按零处理。</div>
+</section>
 <div id="status">正在加载历史日线……</div>
 <div class="foot">数据源：创业板指与中证红利使用东方财富公开历史行情接口；VXN 与 VIX 使用 CBOE 官方历史日线；纳斯达克100与标普500指数使用 Yahoo Finance 历史日线，由 GitHub 后台同步。恐慌指数为隐含波动率指数，不是指数价格，也不能单独作为买卖信号。接口限流、跨域策略或网络环境可能影响加载；页面不构成投资建议。</div>
 </main>
 <script>
 const API='https://push2his.eastmoney.com/api/qt/stock/kline/get',TOKEN='7eea3edcaed734bea9cbfc24409ed989';
-const charts={overview:echarts.init(document.getElementById('overview')),vxn:echarts.init(document.getElementById('vxnChart')),vix:echarts.init(document.getElementById('vixChart'))};
+const charts={overview:echarts.init(document.getElementById('overview')),vxn:echarts.init(document.getElementById('vxnChart')),vix:echarts.init(document.getElementById('vixChart')),nationalTeam:echarts.init(document.getElementById('nationalTeamChart'))};
 let data=[],period='10';
 async function fetchDaily(secid){const url=API+'?secid='+secid+'&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&klt=101&fqt=0&beg=20161031&end=20500101&lmt=10000&ut='+TOKEN+'&_='+Date.now();const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const json=await res.json();if(!json?.data?.klines)throw Error('指数 '+secid+' 未返回数据');return json.data.klines.map(s=>{const a=s.split(',');return {date:a[0],open:+a[1],close:+a[2],high:+a[3],low:+a[4]}}).filter(x=>x.date&&[x.open,x.close,x.high,x.low].every(v=>v>0&&Number.isFinite(v)))}
 async function fetchVolatilityDaily(symbol){const url='./data/'+symbol+'.json?v='+Date.now();const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error(symbol+'本地行情文件 HTTP '+res.status);const rows=await res.json();if(!Array.isArray(rows)||rows.length<100)throw Error(symbol+'历史数据不足：'+(rows?.length||0)+'行');return rows.filter(x=>x.date&&[x.open,x.high,x.low,x.close].every(v=>Number.isFinite(Number(v))&&Number(v)>0)).map(x=>({date:x.date,open:+x.open,high:+x.high,low:+x.low,close:+x.close})).sort((a,b)=>a.date.localeCompare(b.date))}
@@ -54,14 +68,74 @@ function drawVolatility(chart,rows,indexRows,title,indexTitle){const p=window.sl
 
 let vxnData=[],vixData=[],ndxData=[],spxData=[];
 async function loadVolatility(){for(const item of [{symbol:'VXN',indexSymbol:'NDX',key:'vxn',chart:charts.vxn,title:'VXN 纳指100恐慌指数',indexTitle:'纳斯达克100指数'},{symbol:'VIX',indexSymbol:'SPX',key:'vix',chart:charts.vix,title:'VIX 标普500恐慌指数',indexTitle:'标普500指数'}]){const status=document.getElementById(item.key+'Status');try{status.textContent='正在读取 '+item.symbol+' 与 '+item.indexTitle+' 日线……';const [rows,indexRows]=await Promise.all([fetchVolatilityDaily(item.symbol),fetchVolatilityDaily(item.indexSymbol)]);if(rows.length<100||indexRows.length<100)throw Error('返回历史数据数量不足');if(item.key==='vxn'){vxnData=rows;ndxData=indexRows;document.getElementById('vxnLatest').textContent=rows[rows.length-1].close.toFixed(2);document.getElementById('vxnLatestDate').textContent='最新交易日：'+rows[rows.length-1].date}else{vixData=rows;spxData=indexRows;document.getElementById('vixLatest').textContent=rows[rows.length-1].close.toFixed(2);document.getElementById('vixLatestDate').textContent='最新交易日：'+rows[rows.length-1].date}drawVolatility(item.chart,rows,indexRows,item.symbol,item.indexTitle);status.className='ok';status.textContent='加载成功：'+item.symbol+' '+rows.length+' 根日K；'+item.indexTitle+' '+indexRows.length+' 个交易日。左轴为恐慌指数，右轴为对应市场指数；最新交易日 '+rows[rows.length-1].date+'。数据源：GitHub后台同步数据。'}catch(e){status.className='err';status.textContent='加载失败：'+e.message+'。'}}}
+
+const nationalTeamSource=[
+{date:'2019-12-31',shares:49.677368,ratio:17.151525,funds:[24.239586,1.6,19.874252,3.96353]},
+{date:'2020-06-30',shares:51.491489,ratio:21.320371,funds:[24.239586,2.3,20.844132,4.107772]},
+{date:'2020-12-31',shares:56.447087,ratio:24.312019,funds:[24.239586,3.6,24.129095,4.478407]},
+{date:'2021-06-30',shares:55.975334,ratio:24.104523,funds:[24.239586,3.6,23.54625,4.589499]},
+{date:'2021-12-31',shares:54.087334,ratio:20.534765,funds:[24.239586,3.2,22.058249,4.589499]},
+{date:'2022-06-30',shares:52.965608,ratio:20.638312,funds:[24.239586,3.7,19.017027,6.008995]},
+{date:'2022-12-31',shares:52.360314,ratio:12.964786,funds:[24.239586,3.55,17.909427,6.661302]},
+{date:'2023-06-30',shares:52.619463,ratio:12.990331,funds:[24.239586,3.6,17.909427,6.870451]},
+{date:'2023-12-31',shares:190.189004,ratio:21.388087,funds:[62.47371,65.682577,28.930299,33.102419]},
+{date:'2024-06-30',shares:1336.509542,ratio:66.939217,funds:[363.826404,558.017158,211.093274,203.572707]},
+{date:'2024-12-31',shares:1719.687602,ratio:74.377174,funds:[622.759272,472.682496,325.830938,298.414896]},
+{date:'2025-06-30',shares:2071.876766,ratio:82.323889,funds:[735.130738,561.480855,420.280223,354.98495]},
+{date:'2025-12-31',shares:2071.876766,ratio:85.259722,funds:[735.130738,561.480855,420.280223,354.98495]}
+];
+let nationalTeamRows=[];
+function nearestClose(rows,date){for(let i=rows.length-1;i>=0;i--)if(rows[i].date<=date)return rows[i].close;return null}
+async function loadNationalTeam(){
+ const st=document.getElementById('nationalTeamStatus');
+ try{
+  st.textContent='正在读取四只ETF与沪深300指数历史收盘价……';
+  const [etf300,etf310,etf330,etf919,csi]=await Promise.all([
+   fetchDaily('1.510300'),fetchDaily('1.510310'),fetchDaily('1.510330'),fetchDaily('0.159919'),fetchDaily('1.000300')
+  ]);
+  const prices=[etf300,etf310,etf330,etf919];
+  nationalTeamRows=nationalTeamSource.map(r=>{
+   const closes=prices.map(p=>nearestClose(p,r.date));
+   const indexClose=nearestClose(csi,r.date);
+   const marketValue=closes.every((v,i)=>v!==null&&Number.isFinite(r.funds[i]))?closes.reduce((sum,v,i)=>sum+v*r.funds[i],0):null;
+   return {...r,marketValue,indexClose};
+  }).filter(r=>r.marketValue!==null&&r.indexClose!==null);
+  if(!nationalTeamRows.length)throw Error('未能匹配到报告期ETF或沪深300收盘价');
+  const base=nationalTeamRows[0].indexClose;
+  nationalTeamRows.forEach(r=>r.index100=r.indexClose/base*100);
+  renderNationalTeam();
+  st.className='ok';
+  st.textContent='加载成功：'+nationalTeamRows.length+'个半年/年度报告期；最新持仓报告期 '+nationalTeamRows[nationalTeamRows.length-1].date+'。市值为按ETF收盘价估算。';
+ }catch(e){st.className='err';st.textContent='加载失败：'+e.message+'。'}
+}
+function renderNationalTeam(){
+ let rows=nationalTeamRows;
+ if(period!=='all'&&rows.length){const last=new Date(rows[rows.length-1].date+'T12:00:00');last.setFullYear(last.getFullYear()-Number(period));const cutoff=last.toISOString().slice(0,10);rows=rows.filter(r=>r.date>=cutoff)}
+ if(!rows.length)return;
+ const opt=commonOption(rows.map(r=>r.date),55);
+ opt.grid={left:72,right:76,top:38,bottom:58};
+ opt.legend={top:2,textStyle:{color:'#cbd5e1'}};
+ opt.tooltip={trigger:'axis',axisPointer:{type:'cross'},valueFormatter:(v)=>Number(v).toFixed(2)};
+ opt.yAxis=[
+  {type:'value',scale:true,name:'持仓市值（亿元）',nameTextStyle:{color:'#f5ad55'},axisLabel:{color:'#f5ad55'},splitLine:{lineStyle:{color:'#293956',type:'dashed'}}},
+  {type:'value',scale:true,name:'沪深300（首期=100）',position:'right',nameTextStyle:{color:'#48c8e8'},axisLabel:{color:'#48c8e8'},splitLine:{show:false}}
+ ];
+ opt.series=[
+  {name:'国家队持仓估算市值',type:'line',yAxisIndex:0,data:rows.map(r=>+r.marketValue.toFixed(2)),symbol:'circle',symbolSize:6,lineStyle:{width:2,color:'#f5ad55'},itemStyle:{color:'#f5ad55'}},
+  {name:'沪深300指数（归一化）',type:'line',yAxisIndex:1,data:rows.map(r=>+r.index100.toFixed(2)),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#48c8e8'}}
+ ];
+ charts.nationalTeam.setOption(opt,true);
+ document.querySelector('#nationalTeamTable tbody').innerHTML=rows.slice().reverse().map(r=>'<tr style="border-bottom:1px solid #293956;text-align:right"><td style="padding:8px;text-align:left">'+r.date+'</td><td style="padding:8px">'+r.marketValue.toFixed(1)+'</td><td style="padding:8px">'+r.shares.toFixed(1)+'</td><td style="padding:8px">'+r.ratio.toFixed(1)+'%</td><td style="padding:8px">'+r.indexClose.toFixed(2)+'</td><td style="padding:8px">'+r.index100.toFixed(1)+'</td></tr>').join('');
+}
+
 function visibleData(){if(period==='all')return data;const d=new Date(data[data.length-1].date+'T12:00:00');d.setFullYear(d.getFullYear()-Number(period));const s=d.toISOString().slice(0,10);const i=data.findIndex(x=>x.date>=s);return data.slice(Math.max(0,i))}
 function commonOption(dates,gridBottom=48){return {animation:false,tooltip:{trigger:'axis'},grid:{left:58,right:18,top:18,bottom:gridBottom},xAxis:{type:'category',data:dates,axisLabel:{color:'#91a0ba',hideOverlap:true}},dataZoom:[{type:'inside'},{type:'slider',height:15,bottom:8}],backgroundColor:'transparent'}}
 function drawLine(){const p=visibleData();if(!p.length)return;const opt=commonOption(p.map(x=>x.date),55);opt.legend={top:0,textStyle:{color:'#cbd5e1'}};opt.grid={left:66,right:68,top:42,bottom:55};opt.tooltip={trigger:'axis',axisPointer:{type:'cross'},valueFormatter:(v)=>Number(v).toFixed(4)};opt.yAxis=[{type:'value',scale:true,name:'指数点位',nameTextStyle:{color:'#91a0ba'},axisLabel:{color:'#91a0ba',formatter:v=>v.toFixed(0)},splitLine:{lineStyle:{color:'#293956',type:'dashed'}}},{type:'value',scale:true,name:'比值',nameTextStyle:{color:'#b58cff'},position:'right',axisLabel:{color:'#b58cff',formatter:v=>v.toFixed(3)},splitLine:{show:false}}];opt.series=[{name:'创业板指真实点位',type:'line',yAxisIndex:0,data:p.map(x=>x.growth),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#48c8e8'}},{name:'中证红利真实点位',type:'line',yAxisIndex:0,data:p.map(x=>x.dividend),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#f5ad55'}},{name:'创业板指 ÷ 中证红利真实比值',type:'line',yAxisIndex:1,data:p.map(x=>+x.ratio.toFixed(6)),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#b58cff'}}];charts.overview.setOption(opt,true)}
 function draw(){drawLine()}
 async function load(){const st=document.getElementById('status');st.className='';st.textContent='正在读取两个指数的每日OHLC数据……';try{const [g,d]=await Promise.all([fetchDaily('0.399006'),fetchDaily('1.000922')]);const dm=new Map(d.map(x=>[x.date,x]));data=g.filter(x=>dm.has(x.date)).map(x=>{const y=dm.get(x.date);return {date:x.date,open:x.open,close:x.close,high:x.high,low:x.low,growth:x.close,dividend:y.close,divOpen:y.open,divClose:y.close,divHigh:y.high,divLow:y.low,ratio:x.close/y.close}}).sort((a,b)=>a.date.localeCompare(b.date));if(data.length<500)throw Error('共同交易日数量异常：'+data.length);const last=data[data.length-1];document.getElementById('ratio').textContent=last.ratio.toFixed(5);document.getElementById('date').textContent='最新共同交易日：'+last.date;document.getElementById('growth').textContent=last.close.toFixed(2);document.getElementById('dividend').textContent=last.divClose.toFixed(2);document.getElementById('pct').textContent=(100*data.filter(x=>x.ratio<=last.ratio).length/data.length).toFixed(1)+'%';document.getElementById('count').textContent=data.length.toLocaleString()+' 个共同交易日，自 '+data[0].date+' 起';draw();st.className='ok';st.textContent='加载成功：'+data.length+' 个共同交易日；最新数据 '+last.date+'。'}catch(e){st.className='err';st.textContent='读取失败：'+e.message+'。请检查网络或稍后重试。';document.getElementById('ratio').textContent='暂不可用'}}
-document.getElementById('ranges').onclick=e=>{const b=e.target.closest('button[data-r]');if(!b)return;period=b.dataset.r;document.querySelectorAll('#ranges button[data-r]').forEach(x=>x.classList.toggle('active',x===b));if(data.length)draw();if(vxnData.length&&ndxData.length)drawVolatility(charts.vxn,vxnData,ndxData,'VXN','纳斯达克100');if(vixData.length&&spxData.length)drawVolatility(charts.vix,vixData,spxData,'VIX','标普500')};
+document.getElementById('ranges').onclick=e=>{const b=e.target.closest('button[data-r]');if(!b)return;period=b.dataset.r;document.querySelectorAll('#ranges button[data-r]').forEach(x=>x.classList.toggle('active',x===b));if(data.length)draw();if(vxnData.length&&ndxData.length)drawVolatility(charts.vxn,vxnData,ndxData,'VXN','纳斯达克100');if(vixData.length&&spxData.length)drawVolatility(charts.vix,vixData,spxData,'VIX','标普500');if(nationalTeamRows.length)renderNationalTeam()};
 document.getElementById('refresh').onclick=load;
 document.getElementById('csv').onclick=()=>{if(!data.length)return;const rows=['日期,创业板指开盘,创业板指收盘,创业板指最高,创业板指最低,中证红利开盘,中证红利收盘,中证红利最高,中证红利最低,收盘比值',...data.map(x=>[x.date,x.open,x.close,x.high,x.low,x.divOpen,x.divClose,x.divHigh,x.divLow,x.ratio].join(','))];const a=document.createElement('a'),u=URL.createObjectURL(new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'}));a.href=u;a.download='创业板_中证红利_十年日K.csv';a.click();URL.revokeObjectURL(u)};
-window.addEventListener('resize',()=>Object.values(charts).forEach(chart=>chart.resize()));load();loadVolatility();
+window.addEventListener('resize',()=>Object.values(charts).forEach(chart=>chart.resize()));load();loadVolatility();loadNationalTeam();
 </script><!-- VIX/VXN data is served from local JSON files -->
 </body></html>
