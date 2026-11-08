@@ -110,7 +110,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/VIX.json data/VXN.json data/NDX.json data/SPX.json data/national-team-etf.json
+          git add data/VIX.json data/VXN.json data/NDX.json data/SPX.json data/national-team-etf.json data/national-team-etf.json
           if ! git diff --cached --quiet; then
             git commit -m "Update volatility and benchmark index data"
             git pull --rebase origin main
