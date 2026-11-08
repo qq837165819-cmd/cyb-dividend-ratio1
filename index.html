@@ -6,7 +6,7 @@
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <style>
 :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#0b1120;color:#e9effa;font:14px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}.wrap{max-width:1200px;margin:auto;padding:18px}h1{font-size:22px;margin:0 0 7px}.sub,.hint,.foot{color:#91a0ba}.sub{line-height:1.7}.cards{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:16px 0}.card,.panel{background:#151f33;border:1px solid #293956;border-radius:12px;padding:13px;margin-bottom:14px}.v{font-size:22px;font-weight:bold;margin:8px 0}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}button{background:#1a2942;border:1px solid #344764;color:#d0dced;border-radius:8px;padding:8px 12px}button.active{background:#174768}.chart{height:410px;width:100%}.mainchart{height:450px}.section-title{font-size:17px;font-weight:700;margin:4px 0 6px}.hint{font-size:12px;line-height:1.6}.ok{color:#81d9ad}.err{color:#ff9b9b}.foot{font-size:12px;line-height:1.8;margin:12px 2px}@media(max-width:900px){.cards{grid-template-columns:repeat(3,1fr)}}@media(max-width:650px){.wrap{padding:11px}.cards{grid-template-columns:repeat(2,1fr);gap:8px}.card,.panel{padding:10px}.chart{height:340px}.mainchart{height:380px}h1{font-size:20px}}
-</style>
+.mini-note{font-size:10px;color:#91a0ba;font-weight:400;white-space:nowrap}</style>
 </head>
 <body><main class="wrap">
 <h1>创业板指 × 中证红利｜十年走势对比</h1>
@@ -16,8 +16,8 @@
 <div class="card">创业板指 399006<div class="v" id="growth">--</div><div class="hint">最新收盘点位</div></div>
 <div class="card">中证红利 000922<div class="v" id="dividend">--</div><div class="hint">最新收盘点位</div></div>
 <div class="card">历史百分位<div class="v" id="pct">--</div><div class="hint" id="count">按共同交易日计算</div></div>
-<div class="card">VXN 纳指恐慌指数<div class="v" id="vxnLatest">--</div><div class="hint" id="vxnLatestDate">等待行情</div></div>
-<div class="card">VIX 标普恐慌指数<div class="v" id="vixLatest">--</div><div class="hint" id="vixLatestDate">等待行情</div></div>
+<div class="card">VXN 纳指恐慌指数 <span class="mini-note">40以上：极度恐慌</span><div class="v" id="vxnLatest">--</div><div class="hint" id="vxnLatestDate">等待行情</div></div>
+<div class="card">VIX 标普恐慌指数 <span class="mini-note">40以上：极度恐慌</span><div class="v" id="vixLatest">--</div><div class="hint" id="vixLatestDate">等待行情</div></div>
 </section>
 <section class="panel">
 <div class="section-title">创业板指、中证红利与比值｜真实点位双纵轴</div>
