@@ -1,0 +1,29 @@
+name: Refresh national team category history
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 12 * * 1-5"
+  push:
+    paths:
+      - "scripts/build_national_team_category.py"
+      - ".github/workflows/national-team-category.yml"
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install akshare requests pandas
+      - name: Build five-year category history
+        run: python scripts/build_national_team_category.py
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/national-team-category-history.json
+          git diff --cached --quiet || (git commit -m "data: refresh national team category history" && git push)
