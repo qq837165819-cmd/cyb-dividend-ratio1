@@ -50,7 +50,7 @@
 <div class="hint">按日期逐行合并：同时显示29只跟踪ETF合计持仓市值、持仓市值较前日变化、每日净申购/赎回估算，以及沪深300和创业板指真实点位。红色代表净流入，绿色代表净流出；单位均为亿元（指数点位除外）。</div>
 <div style="overflow-x:auto;margin-top:10px">
 <table id="nationalTeamTable" style="width:100%;border-collapse:collapse;min-width:760px;font-size:12px">
-<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">日期</th><th style="padding:8px">ETF合计持仓市值（亿元）</th><th style="padding:8px">持仓市值日变化（亿元）</th><th style="padding:8px">每日净流入 / 净流出（亿元）</th><th style="padding:8px">资金方向</th><th style="padding:8px">沪深300真实点位</th><th style="padding:8px">创业板指真实点位</th></tr></thead>
+<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">日期</th><th style="padding:8px">ETF合计持仓市值（亿元）</th><th style="padding:8px">每日净流入 / 净流出（亿元）</th><th style="padding:8px">资金方向</th><th style="padding:8px">持仓市值日变化（亿元）</th><th style="padding:8px">沪深300真实点位</th><th style="padding:8px">创业板指真实点位</th></tr></thead>
 <tbody><tr><td colspan="7" style="padding:12px;color:#91a0ba">等待数据</td></tr></tbody>
 </table>
 </div>
@@ -92,7 +92,7 @@ async function loadNationalTeam(){
   const last=nationalTeamRows[nationalTeamRows.length-1];
   st.className='ok';
   st.textContent='加载成功：'+(holdRes.etf_count||'全部')+'只跟踪ETF；'+nationalTeamRows.length+'个共同交易日；最新日期 '+last.date+'；合计市值 '+last.value.toFixed(1)+'亿元。';
- }catch(e){st.className='err';st.textContent='加载失败：'+e.message+'。';flowSt.className='err';flowSt.textContent='每日净买卖数据暂不可用。'}
+ }catch(e){st.className='err';st.textContent='加载失败：'+e.message+'。'}
 }
 function renderNationalTeam(){
  let rows=nationalTeamRows;
@@ -125,7 +125,7 @@ function renderNationalTeam(){
   const flowText=flow===undefined?'—':((flow>=0?'+':'')+flow.toFixed(2));
   const flowColor=flow===undefined?'#91a0ba':flow>=0?'#ef7777':'#69c9a5';
   const direction=flow===undefined?'—':(flow>=0?'净流入':'净流出');
-  return '<tr style="border-bottom:1px solid #293956;text-align:right"><td style="padding:8px;text-align:left">'+x.date+'</td><td style="padding:8px">'+x.value.toFixed(1)+'</td><td style="padding:8px;color:'+deltaColor+'">'+deltaText+'</td><td style="padding:8px;color:'+flowColor+'">'+flowText+'</td><td style="padding:8px;color:'+flowColor+'">'+direction+'</td><td style="padding:8px">'+x.csi.toFixed(2)+'</td><td style="padding:8px">'+x.cyb.toFixed(2)+'</td></tr>';
+  return '<tr style="border-bottom:1px solid #293956;text-align:right"><td style="padding:8px;text-align:left">'+x.date+'</td><td style="padding:8px">'+x.value.toFixed(1)+'</td><td style="padding:8px;color:'+flowColor+';font-weight:600">'+flowText+'</td><td style="padding:8px;color:'+flowColor+'">'+direction+'</td><td style="padding:8px;color:'+deltaColor+'">'+deltaText+'</td><td style="padding:8px">'+x.csi.toFixed(2)+'</td><td style="padding:8px">'+x.cyb.toFixed(2)+'</td></tr>';
  }).join('')||'<tr><td colspan="7" style="padding:12px;color:#91a0ba">尚无数据</td></tr>';
 }
 function visibleData(){if(period==='all')return data;const d=new Date(data[data.length-1].date+'T12:00:00');d.setFullYear(d.getFullYear()-Number(period));const s=d.toISOString().slice(0,10);const i=data.findIndex(x=>x.date>=s);return data.slice(Math.max(0,i))}
