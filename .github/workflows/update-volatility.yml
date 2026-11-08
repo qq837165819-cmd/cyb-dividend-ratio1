@@ -1,0 +1,65 @@
+name: Update VIX and VXN data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 23 * * 1-5"
+  push:
+    paths:
+      - ".github/workflows/update-volatility.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Download official CBOE daily OHLC
+        run: |
+          python - <<'PY'
+          import csv, io, json, urllib.request, os
+          os.makedirs("data", exist_ok=True)
+          for symbol in ("VIX", "VXN"):
+              url = f"https://cdn.cboe.com/api/global/us_indices/daily_prices/{symbol}_History.csv"
+              req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+              with urllib.request.urlopen(req, timeout=40) as response:
+                  raw = response.read().decode("utf-8-sig")
+              reader = csv.DictReader(io.StringIO(raw))
+              rows = []
+              for row in reader:
+                  date = (row.get("DATE") or "").strip()
+                  try:
+                      if "/" in date:
+                          m, d, y = date.split("/")
+                          date = f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+                      else:
+                          date = date[:10]
+                      item = {"date": date}
+                      for key in ("OPEN", "HIGH", "LOW", "CLOSE"):
+                          item[key.lower()] = float(row[key])
+                      if len(date) == 10 and all(item[k] > 0 for k in ("open","high","low","close")):
+                          rows.append(item)
+                  except (ValueError, TypeError, KeyError):
+                      continue
+              if len(rows) < 100:
+                  raise RuntimeError(f"{symbol}: only {len(rows)} valid rows")
+              with open(f"data/{symbol}.json", "w", encoding="utf-8") as f:
+                  json.dump(rows, f, ensure_ascii=False, separators=(",", ":"))
+              print(f"{symbol}: saved {len(rows)} daily bars, latest={rows[-1]['date']}")
+          PY
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/VIX.json data/VXN.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update VIX and VXN daily data"
+            git push
+          else
+            echo "No data changes"
+          fi
