@@ -79,10 +79,30 @@
 </section>
 <div id="status">正在加载历史日线……</div>
 <div class="foot">数据源：创业板指与中证红利使用东方财富公开历史行情接口；VXN 与 VIX 使用 CBOE 官方历史日线；纳斯达克100与标普500指数使用 Yahoo Finance 历史日线，由 GitHub 后台同步。恐慌指数为隐含波动率指数，不是指数价格，也不能单独作为买卖信号。接口限流、跨域策略或网络环境可能影响加载；页面不构成投资建议。</div>
+
+<section class="panel" id="firstBoardPremiumPanel">
+<div class="section-title">极端涨停行业集中度后的首板次日溢价｜历史回测</div>
+<div class="hint">触发条件：当日涨停股所属行业集中度（HHI）进入此前252个有效交易日的最高10%区间。观察触发后第1、2、3个交易日新出现的首板股票，其下一交易日开盘、收盘相对首板日收盘的平均涨幅。普通交易日作为基准对照。</div>
+<div class="cards" style="grid-template-columns:repeat(3,1fr);margin:12px 0">
+ <div class="card">极端集中触发次数<div class="v" id="fbTriggerCount">--</div><div class="hint">历史有效触发日</div></div>
+ <div class="card">普通交易日开盘溢价<div class="v" id="fbNormalOpen">--</div><div class="hint">非极端集中日均值</div></div>
+ <div class="card">普通交易日收盘溢价<div class="v" id="fbNormalClose">--</div><div class="hint">非极端集中日均值</div></div>
+</div>
+<div id="firstBoardPremiumChart" class="chart" style="height:390px"></div>
+<div style="overflow-x:auto">
+<table style="width:100%;border-collapse:collapse;min-width:480px;font-size:13px">
+<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:9px;text-align:left">触发后时间</th><th style="padding:9px">首板次日开盘平均溢价</th><th style="padding:9px">首板次日收盘平均溢价</th><th style="padding:9px">交易日数 / 股票数</th></tr></thead>
+<tbody id="fbPremiumRows"><tr><td colspan="4" style="padding:12px;text-align:center;color:#91a0ba">正在读取回测数据……</td></tr></tbody>
+</table>
+</div>
+<div class="hint" id="fbPremiumStatus" style="margin-top:10px">正在读取历史回测数据……</div>
+<div class="hint" style="margin-top:6px">口径说明：行业集中度采用涨停股行业分布HHI（各行业涨停数量占比的平方和）；滚动阈值只使用触发日前的252个交易日，避免未来数据。T+1/T+2/T+3分别统计触发后对应交易日的首板股票，并计算这些股票在各自下一交易日的开盘及收盘溢价。每个交易日先计算首板股票平均值，再对交易日等权平均。普通日为未触发极端集中条件的交易日。数据覆盖范围以实际成功采集日期为准，不能覆盖的历史区间不会补造数据。</div>
+</section>
+
 </main>
 <script>
 const API='https://push2his.eastmoney.com/api/qt/stock/kline/get',TOKEN='7eea3edcaed734bea9cbfc24409ed989';
-const charts={overview:echarts.init(document.getElementById('overview')),vxn:echarts.init(document.getElementById('vxnChart')),vix:echarts.init(document.getElementById('vixChart')),nationalTeamCyb:echarts.init(document.getElementById('nationalTeamCybChart')),nationalTeamCsi:echarts.init(document.getElementById('nationalTeamCsiChart')),nationalTeamShare:echarts.init(document.getElementById('nationalTeamShareChart')),nationalTeamCumulative:echarts.init(document.getElementById('nationalTeamCumulativeChart'))};
+const charts={overview:echarts.init(document.getElementById('overview')),vxn:echarts.init(document.getElementById('vxnChart')),vix:echarts.init(document.getElementById('vixChart')),nationalTeamCyb:echarts.init(document.getElementById('nationalTeamCybChart')),nationalTeamCsi:echarts.init(document.getElementById('nationalTeamCsiChart')),nationalTeamShare:echarts.init(document.getElementById('nationalTeamShareChart')),nationalTeamCumulative:echarts.init(document.getElementById('nationalTeamCumulativeChart')),firstBoardPremium:echarts.init(document.getElementById('firstBoardPremiumChart'))};
 let data=[],period='10';
 async function fetchDaily(secid){const url=API+'?secid='+secid+'&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&klt=101&fqt=0&beg=20161031&end=20500101&lmt=10000&ut='+TOKEN+'&_='+Date.now();const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const json=await res.json();if(!json?.data?.klines)throw Error('指数 '+secid+' 未返回数据');return json.data.klines.map(s=>{const a=s.split(',');return {date:a[0],open:+a[1],close:+a[2],high:+a[3],low:+a[4]}}).filter(x=>x.date&&[x.open,x.close,x.high,x.low].every(v=>v>0&&Number.isFinite(v)))}
 async function fetchVolatilityDaily(symbol){const url='./data/'+symbol+'.json?v='+Date.now();const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error(symbol+'本地行情文件 HTTP '+res.status);const rows=await res.json();if(!Array.isArray(rows)||rows.length<100)throw Error(symbol+'历史数据不足：'+(rows?.length||0)+'行');return rows.filter(x=>x.date&&[x.open,x.high,x.low,x.close].every(v=>Number.isFinite(Number(v))&&Number(v)>0)).map(x=>({date:x.date,open:+x.open,high:+x.high,low:+x.low,close:+x.close})).sort((a,b)=>a.date.localeCompare(b.date))}
@@ -195,6 +215,45 @@ async function load(){const st=document.getElementById('status');st.className=''
 document.getElementById('ranges').onclick=e=>{const b=e.target.closest('button[data-r]');if(!b)return;period=b.dataset.r;document.querySelectorAll('#ranges button[data-r]').forEach(x=>x.classList.toggle('active',x===b));if(data.length)draw();if(vxnData.length&&ndxData.length)drawVolatility(charts.vxn,vxnData,ndxData,'VXN','纳斯达克100');if(vixData.length&&spxData.length)drawVolatility(charts.vix,vixData,spxData,'VIX','标普500');if(nationalTeamRows.length)renderNationalTeam()};
 document.getElementById('refresh').onclick=load;
 document.getElementById('csv').onclick=()=>{if(!data.length)return;const rows=['日期,创业板指开盘,创业板指收盘,创业板指最高,创业板指最低,中证红利开盘,中证红利收盘,中证红利最高,中证红利最低,收盘比值',...data.map(x=>[x.date,x.open,x.close,x.high,x.low,x.divOpen,x.divClose,x.divHigh,x.divLow,x.ratio].join(','))];const a=document.createElement('a'),u=URL.createObjectURL(new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'}));a.href=u;a.download='创业板_中证红利_十年日K.csv';a.click();URL.revokeObjectURL(u)};
-window.addEventListener('resize',()=>Object.values(charts).forEach(chart=>chart.resize()));load();loadVolatility();loadNationalTeam();loadNationalTeamCategories();
+
+async function loadFirstBoardPremium(){
+ const st=document.getElementById('fbPremiumStatus');
+ const body=document.getElementById('fbPremiumRows');
+ try{
+  const r=await fetch('./data/first-board-premium-backtest.json?v='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw Error('回测数据文件 HTTP '+r.status+'；请先在 GitHub Actions 运行 first-board-premium 工作流');
+  const p=await r.json();
+  if(!Array.isArray(p.lags)||p.lags.length!==3)throw Error('回测数据格式不完整');
+  document.getElementById('fbTriggerCount').textContent=Number(p.trigger_count||0).toLocaleString();
+  const normal=p.normal||{};
+  const fmt=v=>v===null||v===undefined?'--':(Number(v)>0?'+':'')+Number(v).toFixed(2)+'%';
+  document.getElementById('fbNormalOpen').textContent=fmt(normal.open);
+  document.getElementById('fbNormalClose').textContent=fmt(normal.close);
+  body.innerHTML=p.lags.map(x=>'<tr style="border-bottom:1px solid #293956;text-align:right"><td style="padding:10px;text-align:left">'+x.label+'</td><td style="padding:10px">'+fmt(x.open)+'</td><td style="padding:10px">'+fmt(x.close)+'</td><td style="padding:10px">'+(x.days||0)+' / '+(x.stocks||0)+'</td></tr>').join('');
+  const labels=p.lags.map(x=>x.label);
+  const option={
+   animation:false,backgroundColor:'transparent',
+   legend:{top:2,textStyle:{color:'#cbd5e1'}},
+   tooltip:{trigger:'axis',axisPointer:{type:'cross'},valueFormatter:v=>v===null||v===undefined?'暂无数据':(v>0?'+':'')+Number(v).toFixed(2)+'%'},
+   grid:{left:62,right:22,top:42,bottom:42},
+   xAxis:{type:'category',data:labels,axisLabel:{color:'#91a0ba'},axisLine:{lineStyle:{color:'#52627a'}},axisTick:{show:false}},
+   yAxis:{type:'value',scale:true,name:'平均溢价（%）',axisLabel:{color:'#91a0ba',formatter:v=>v.toFixed(1)+'%'},splitLine:{lineStyle:{color:'#293956',type:'dashed'}}},
+   series:[
+    {name:'极端集中后｜次日开盘溢价',type:'line',data:p.lags.map(x=>x.open),symbol:'circle',symbolSize:7,connectNulls:false,lineStyle:{width:3,color:'#48c8e8'}},
+    {name:'极端集中后｜次日收盘溢价',type:'line',data:p.lags.map(x=>x.close),symbol:'circle',symbolSize:7,connectNulls:false,lineStyle:{width:3,color:'#f5ad55'}},
+    {name:'普通交易日｜开盘溢价基准',type:'line',data:labels.map(()=>normal.open),symbol:'none',lineStyle:{width:1.5,type:'dashed',color:'#48c8e8',opacity:.55}},
+    {name:'普通交易日｜收盘溢价基准',type:'line',data:labels.map(()=>normal.close),symbol:'none',lineStyle:{width:1.5,type:'dashed',color:'#f5ad55',opacity:.55}}
+   ]
+  };
+  charts.firstBoardPremium.setOption(option,true);
+  st.className='ok';
+  st.textContent='回测数据已加载：'+p.start_date+' 至 '+p.end_date+'；涨停池有效交易日 '+p.pool_days+'；首板股票行情覆盖 '+p.stock_count+' 只；极端集中触发 '+p.trigger_count+' 次；数据生成时间 '+p.generated_at+'。'+(p.pool_failures?' 部分交易日采集失败：'+p.pool_failures+'天。':'')+' 数据口径：'+p.method;
+ }catch(e){
+  body.innerHTML='<tr><td colspan="4" style="padding:12px;text-align:center;color:#ff9b9b">'+e.message+'</td></tr>';
+  st.className='err';st.textContent='回测数据暂不可用：'+e.message+'。历史采集完成并生成JSON后刷新网页。';
+ }
+}
+
+window.addEventListener('resize',()=>Object.values(charts).forEach(chart=>chart.resize()));load();loadVolatility();loadNationalTeam();loadNationalTeamCategories();loadFirstBoardPremium();
 </script><!-- VIX/VXN data is served from local JSON files -->
 </body></html>
