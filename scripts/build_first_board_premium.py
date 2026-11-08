@@ -96,8 +96,10 @@ def main():
         if i % 50 == 0:
             print(f"limit-up pools {i}/{len(dates)}; stocks={len(stock_codes)}; failures={len(failures)}", flush=True)
         time.sleep(0.12)
-    if len(pools) < 500:
-        raise RuntimeError(f"涨停池历史覆盖不足：仅{len(pools)}个交易日成功，不能生成可信回测")
+    nonempty_days = sum(1 for rows in pools.values() if rows)
+    total_pool_rows = sum(len(rows) for rows in pools.values())
+    if len(pools) < 500 or nonempty_days < 500 or total_pool_rows < 10000:
+        raise RuntimeError(f"涨停池历史覆盖不足：日历日期{len(pools)}天，非空涨停池{nonempty_days}天，股票记录{total_pool_rows}条；不能生成可信回测")
     print("Downloading daily bars for", len(stock_codes), "stocks", flush=True)
     bars = {}
     for i, code in enumerate(sorted(stock_codes), 1):
