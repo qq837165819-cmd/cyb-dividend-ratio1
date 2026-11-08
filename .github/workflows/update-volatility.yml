@@ -59,7 +59,8 @@ jobs:
           git add data/VIX.json data/VXN.json
           if ! git diff --cached --quiet; then
             git commit -m "Update VIX and VXN daily data"
-            git push
+            git pull --rebase origin main
+          git push
           else
             echo "No data changes"
           fi
