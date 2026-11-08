@@ -42,17 +42,17 @@
 
 
 <section class="panel">
-<div class="section-title">国家队沪深300ETF持仓 vs 沪深300指数｜半年报/年报</div>
-<div class="hint">橙线：国家队已识别持仓估算市值（四只沪深300ETF合计，亿元，左轴）；蓝线：沪深300指数走势（首期归一化为100，右轴）。表格列出各报告期持仓与指数数据。</div>
+<div class="section-title">国家队跟踪ETF总持仓市值 vs 沪深300 / 创业板走势</div>
+<div class="hint">橙线：你提供的报表所跟踪全部宽基ETF合计市值（亿元，左轴）；蓝线：沪深300；紫线：创业板指（右轴，均以首个交易日=100归一化）。按源报表每日更新，历史约5年。</div>
 <div id="nationalTeamChart" class="chart"></div>
-<div class="hint" id="nationalTeamStatus">正在读取国家队ETF持仓及沪深300指数……</div>
+<div class="hint" id="nationalTeamStatus">正在读取全部跟踪ETF持仓市值及指数日线……</div>
 <div style="overflow-x:auto;margin-top:10px">
-<table id="nationalTeamTable" style="width:100%;border-collapse:collapse;min-width:620px;font-size:12px">
-<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">报告期</th><th style="padding:8px">持仓估算市值（亿元）</th><th style="padding:8px">持有份额（亿份）</th><th style="padding:8px">持有占比</th><th style="padding:8px">沪深300收盘</th><th style="padding:8px">指数归一化</th></tr></thead>
-<tbody><tr><td colspan="6" style="padding:12px;color:#91a0ba">等待数据</td></tr></tbody>
+<table id="nationalTeamTable" style="width:100%;border-collapse:collapse;min-width:560px;font-size:12px">
+<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">日期</th><th style="padding:8px">全部跟踪ETF市值（亿元）</th><th style="padding:8px">较前日市值变化（亿元）</th><th style="padding:8px">沪深300</th><th style="padding:8px">创业板指</th></tr></thead>
+<tbody><tr><td colspan="5" style="padding:12px;color:#91a0ba">等待数据</td></tr></tbody>
 </table>
 </div>
-<div class="hint" style="margin-top:10px">口径说明：国家队仅统计四只沪深300ETF定期报告前十大持有人中明确披露的中央汇金、中国证券金融账户，属于可识别下限；未进入前十不代表没有持仓。持仓市值按报告期持有份额×ETF当日收盘价估算，非官方公布总市值。持有人数据半年披露一次，当前来源最新报告期为2025-12-31；2019年以前无法完整识别的区间留空，不按零处理。</div>
+<div class="hint" style="margin-top:10px">统计口径：直接采用你提供的“国家队ETF每日净买入/净卖出”报表中累计持仓金额曲线，汇总该报表当期纳入的全部ETF（当前源网页已扩展至29只，名单变化会自动跟随）。该金额为跟踪ETF份额×单位净值的合计市值，是国家队资金动向的代理观察指标，不等于中央汇金实时、完整的真实持仓；市值日变化同时受ETF申赎和价格涨跌影响，不可直接视为净买入金额。每日净申购/赎回请以原网页明细为准。</div>
 </section>
 <div id="status">正在加载历史日线……</div>
 <div class="foot">数据源：创业板指与中证红利使用东方财富公开历史行情接口；VXN 与 VIX 使用 CBOE 官方历史日线；纳斯达克100与标普500指数使用 Yahoo Finance 历史日线，由 GitHub 后台同步。恐慌指数为隐含波动率指数，不是指数价格，也不能单独作为买卖信号。接口限流、跨域策略或网络环境可能影响加载；页面不构成投资建议。</div>
