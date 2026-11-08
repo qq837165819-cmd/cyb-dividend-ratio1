@@ -7,6 +7,9 @@ on:
       - ".github/workflows/first-board-premium.yml"
   schedule:
     - cron: "40 12 * * 6"
+concurrency:
+  group: first-board-premium-backtest
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
