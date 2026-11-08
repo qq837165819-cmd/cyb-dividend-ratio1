@@ -55,6 +55,17 @@
 <div class="hint" style="margin-top:8px">前三类指数合计持仓市值 7,565.7亿元，占全部跟踪ETF总持仓市值约 67.08%。</div>
 </section>
 <section class="panel">
+<div class="section-title">国家队各类ETF持仓占比｜近五年</div>
+<div class="hint">各类ETF持仓市值占29只跟踪ETF总市值的比例，按真实份额与单位净值估算；可点击图例隐藏类别。</div>
+<div id="nationalTeamShareChart" class="chart" style="height:460px"></div>
+<div class="hint" id="nationalTeamCategoryStatus">正在读取13类ETF历史份额与净值……</div>
+</section>
+<section class="panel">
+<div class="section-title">国家队各类ETF累计净买入｜近五年</div>
+<div class="hint">每日份额变化×当日可得单位净值，按指数类别累计，单位：亿元。新纳入或历史覆盖不足的ETF从可用记录开始计入。</div>
+<div id="nationalTeamCumulativeChart" class="chart" style="height:460px"></div>
+</section>
+<section class="panel">
 <div class="section-title">国家队ETF持仓市值 vs 创业板指</div>
 <div class="hint">上方主图：全部跟踪ETF合计持仓市值（亿元，左轴）与创业板指真实点位（右轴）；下方副图：每日净流入 / 净流出红绿柱。两部分共用日期轴，缩放和拖动同步。</div>
 <div id="nationalTeamCybChart" class="chart" style="height:500px"></div>
@@ -71,7 +82,7 @@
 </main>
 <script>
 const API='https://push2his.eastmoney.com/api/qt/stock/kline/get',TOKEN='7eea3edcaed734bea9cbfc24409ed989';
-const charts={overview:echarts.init(document.getElementById('overview')),vxn:echarts.init(document.getElementById('vxnChart')),vix:echarts.init(document.getElementById('vixChart')),nationalTeamCyb:echarts.init(document.getElementById('nationalTeamCybChart')),nationalTeamCsi:echarts.init(document.getElementById('nationalTeamCsiChart'))};
+const charts={overview:echarts.init(document.getElementById('overview')),vxn:echarts.init(document.getElementById('vxnChart')),vix:echarts.init(document.getElementById('vixChart')),nationalTeamCyb:echarts.init(document.getElementById('nationalTeamCybChart')),nationalTeamCsi:echarts.init(document.getElementById('nationalTeamCsiChart')),nationalTeamShare:echarts.init(document.getElementById('nationalTeamShareChart')),nationalTeamCumulative:echarts.init(document.getElementById('nationalTeamCumulativeChart'))};
 let data=[],period='10';
 async function fetchDaily(secid){const url=API+'?secid='+secid+'&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&klt=101&fqt=0&beg=20161031&end=20500101&lmt=10000&ut='+TOKEN+'&_='+Date.now();const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const json=await res.json();if(!json?.data?.klines)throw Error('指数 '+secid+' 未返回数据');return json.data.klines.map(s=>{const a=s.split(',');return {date:a[0],open:+a[1],close:+a[2],high:+a[3],low:+a[4]}}).filter(x=>x.date&&[x.open,x.close,x.high,x.low].every(v=>v>0&&Number.isFinite(v)))}
 async function fetchVolatilityDaily(symbol){const url='./data/'+symbol+'.json?v='+Date.now();const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error(symbol+'本地行情文件 HTTP '+res.status);const rows=await res.json();if(!Array.isArray(rows)||rows.length<100)throw Error(symbol+'历史数据不足：'+(rows?.length||0)+'行');return rows.filter(x=>x.date&&[x.open,x.high,x.low,x.close].every(v=>Number.isFinite(Number(v))&&Number(v)>0)).map(x=>({date:x.date,open:+x.open,high:+x.high,low:+x.low,close:+x.close})).sort((a,b)=>a.date.localeCompare(b.date))}
@@ -144,6 +155,38 @@ function renderNationalTeam(){
  charts.nationalTeamCyb.setOption(makeOption('cyb','创业板指','#b58cff'),true);
  charts.nationalTeamCsi.setOption(makeOption('csi','沪深300','#48c8e8'),true);
 }
+let nationalTeamCategoryData=null;
+async function loadNationalTeamCategories(){
+ const st=document.getElementById('nationalTeamCategoryStatus');
+ try{
+  const r=await fetch('./data/national-team-category-history.json?v='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw Error('分类历史文件 HTTP '+r.status);
+  const p=await r.json();
+  if(!Array.isArray(p.dates)||!Array.isArray(p.categories)||p.dates.length<500)throw Error('分类历史数据不足');
+  nationalTeamCategoryData=p;renderNationalTeamCategories();
+  st.className='ok';
+  st.textContent='加载成功：'+p.categories.length+'类、'+p.dates.length+'个交易日；'+p.start_date+' 至 '+p.latest_date+'。'+p.note;
+ }catch(e){st.className='err';st.textContent='分类历史暂不可用：'+e.message+'。后台首次采集完成后刷新页面即可。'}
+}
+function renderNationalTeamCategories(){
+ const p=nationalTeamCategoryData;if(!p)return;
+ const end=p.dates[p.dates.length-1],cut=new Date(end+'T12:00:00');cut.setFullYear(cut.getFullYear()-5);
+ const start=cut.toISOString().slice(0,10);
+ let from=p.dates.findIndex(d=>d>=start);if(from<0)from=0;
+ const dates=p.dates.slice(from);
+ const colors=['#f5ad55','#48c8e8','#b58cff','#ef7777','#81d9ad','#d7a6ff','#f0d264','#62a8ff','#ff9d6e','#5fd1c1','#c2a3ff','#e6a4c8','#9eb2c9'];
+ const common={animation:false,backgroundColor:'transparent',tooltip:{trigger:'axis',axisPointer:{type:'cross'},confine:true},legend:{type:'scroll',top:2,textStyle:{color:'#cbd5e1'},pageTextStyle:{color:'#cbd5e1'}},grid:{left:66,right:22,top:62,bottom:62},xAxis:{type:'category',data:dates,axisLabel:{color:'#91a0ba',hideOverlap:true},axisLine:{lineStyle:{color:'#52627a'}},axisTick:{show:false}},yAxis:{type:'value',scale:true,axisLabel:{color:'#91a0ba'},splitLine:{lineStyle:{color:'#293956',type:'dashed'}}},dataZoom:[{type:'inside',zoomOnMouseWheel:true},{type:'slider',height:14,bottom:8,textStyle:{color:'#91a0ba'}}]};
+ const shareOpt=JSON.parse(JSON.stringify(common));
+ shareOpt.yAxis.name='占比（%）';shareOpt.yAxis.axisLabel.formatter=v=>v.toFixed(1)+'%';
+ shareOpt.tooltip.valueFormatter=v=>v==null?'暂无数据':Number(v).toFixed(2)+'%';
+ shareOpt.series=p.categories.map((c,i)=>({name:c.name,type:'line',data:c.share.slice(from),showSymbol:false,symbol:'none',connectNulls:false,lineStyle:{width:2,color:colors[i%colors.length]}}));
+ const cumOpt=JSON.parse(JSON.stringify(common));
+ cumOpt.yAxis.name='累计净买入（亿元）';
+ cumOpt.tooltip.valueFormatter=v=>v==null?'暂无数据':Number(v).toFixed(1)+' 亿元';
+ cumOpt.series=p.categories.map((c,i)=>({name:c.name,type:'line',data:c.cumulative.slice(from),showSymbol:false,symbol:'none',connectNulls:false,lineStyle:{width:2,color:colors[i%colors.length]}}));
+ charts.nationalTeamShare.setOption(shareOpt,true);
+ charts.nationalTeamCumulative.setOption(cumOpt,true);
+}
 function visibleData(){if(period==='all')return data;const d=new Date(data[data.length-1].date+'T12:00:00');d.setFullYear(d.getFullYear()-Number(period));const s=d.toISOString().slice(0,10);const i=data.findIndex(x=>x.date>=s);return data.slice(Math.max(0,i))}
 function commonOption(dates,gridBottom=48){return {animation:false,tooltip:{trigger:'axis'},grid:{left:58,right:18,top:18,bottom:gridBottom},xAxis:{type:'category',data:dates,axisLabel:{color:'#91a0ba',hideOverlap:true}},dataZoom:[{type:'inside'},{type:'slider',height:15,bottom:8}],backgroundColor:'transparent'}}
 function drawLine(){const p=visibleData();if(!p.length)return;const opt=commonOption(p.map(x=>x.date),55);opt.legend={top:0,textStyle:{color:'#cbd5e1'}};opt.grid={left:66,right:68,top:42,bottom:55};opt.tooltip={trigger:'axis',axisPointer:{type:'cross'},valueFormatter:(v)=>Number(v).toFixed(4)};opt.yAxis=[{type:'value',scale:true,name:'指数点位',nameTextStyle:{color:'#91a0ba'},axisLabel:{color:'#91a0ba',formatter:v=>v.toFixed(0)},splitLine:{lineStyle:{color:'#293956',type:'dashed'}}},{type:'value',scale:true,name:'比值',nameTextStyle:{color:'#b58cff'},position:'right',axisLabel:{color:'#b58cff',formatter:v=>v.toFixed(3)},splitLine:{show:false}}];opt.series=[{name:'创业板指真实点位',type:'line',yAxisIndex:0,data:p.map(x=>x.growth),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#48c8e8'}},{name:'中证红利真实点位',type:'line',yAxisIndex:0,data:p.map(x=>x.dividend),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#f5ad55'}},{name:'创业板指 ÷ 中证红利真实比值',type:'line',yAxisIndex:1,data:p.map(x=>+x.ratio.toFixed(6)),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#b58cff'}}];charts.overview.setOption(opt,true)}
@@ -152,6 +195,6 @@ async function load(){const st=document.getElementById('status');st.className=''
 document.getElementById('ranges').onclick=e=>{const b=e.target.closest('button[data-r]');if(!b)return;period=b.dataset.r;document.querySelectorAll('#ranges button[data-r]').forEach(x=>x.classList.toggle('active',x===b));if(data.length)draw();if(vxnData.length&&ndxData.length)drawVolatility(charts.vxn,vxnData,ndxData,'VXN','纳斯达克100');if(vixData.length&&spxData.length)drawVolatility(charts.vix,vixData,spxData,'VIX','标普500');if(nationalTeamRows.length)renderNationalTeam()};
 document.getElementById('refresh').onclick=load;
 document.getElementById('csv').onclick=()=>{if(!data.length)return;const rows=['日期,创业板指开盘,创业板指收盘,创业板指最高,创业板指最低,中证红利开盘,中证红利收盘,中证红利最高,中证红利最低,收盘比值',...data.map(x=>[x.date,x.open,x.close,x.high,x.low,x.divOpen,x.divClose,x.divHigh,x.divLow,x.ratio].join(','))];const a=document.createElement('a'),u=URL.createObjectURL(new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'}));a.href=u;a.download='创业板_中证红利_十年日K.csv';a.click();URL.revokeObjectURL(u)};
-window.addEventListener('resize',()=>Object.values(charts).forEach(chart=>chart.resize()));load();loadVolatility();loadNationalTeam();
+window.addEventListener('resize',()=>Object.values(charts).forEach(chart=>chart.resize()));load();loadVolatility();loadNationalTeam();loadNationalTeamCategories();
 </script><!-- VIX/VXN data is served from local JSON files -->
 </body></html>
