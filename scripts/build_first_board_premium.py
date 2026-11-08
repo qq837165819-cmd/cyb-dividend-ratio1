@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 from datetime import datetime
 import pandas as pd
 import akshare as ak
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 START = "20190101"
 END = datetime.now().strftime("%Y%m%d")
@@ -89,7 +90,7 @@ def main():
             hhi[day] = sum((n / total) ** 2 for n in counts.values()) if total else None
             first = [x["code"] for x in rows if x["is_first"]]
             first_by_day[day] = first
-            stock_codes.update(x["code"] for x in rows)
+            stock_codes.update(first)
         except Exception as e:
             failures.append(day)
             print("pool failed", day, str(e)[:160], flush=True)
@@ -100,13 +101,20 @@ def main():
     total_pool_rows = sum(len(rows) for rows in pools.values())
     if len(pools) < 500 or nonempty_days < 500 or total_pool_rows < 10000:
         raise RuntimeError(f"涨停池历史覆盖不足：日历日期{len(pools)}天，非空涨停池{nonempty_days}天，股票记录{total_pool_rows}条；不能生成可信回测")
-    print("Downloading daily bars for", len(stock_codes), "stocks", flush=True)
+    print("Downloading daily bars for", len(stock_codes), "first-board stocks only (4 workers)", flush=True)
     bars = {}
-    for i, code in enumerate(sorted(stock_codes), 1):
-        bars[code] = fetch_stock_daily(code)
-        if i % 100 == 0:
-            print(f"stock bars {i}/{len(stock_codes)}", flush=True)
-        time.sleep(0.12)
+    codes = sorted(stock_codes)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = {pool.submit(fetch_stock_daily, code): code for code in codes}
+        for i, future in enumerate(as_completed(futures), 1):
+            code = futures[future]
+            try:
+                bars[code] = future.result()
+            except Exception as e:
+                bars[code] = {}
+                print("stock history failed", code, str(e)[:120], flush=True)
+            if i % 100 == 0 or i == len(codes):
+                print(f"first-board stock bars {i}/{len(codes)}", flush=True)
 
     # Build each trading day's first-board next-session opening/closing premium.
     session = {}
