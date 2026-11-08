@@ -94,12 +94,32 @@ jobs:
                     and isinstance(x.get("v"), (int, float))]
           if len(series) < 200:
               raise RuntimeError(f"ETF holdings history too short: {len(series)} rows")
+
+          # Extract actual daily net subscriptions/redemptions from the source report.
+          dates_match = re.search(r"var\s+DATA_D\s*=\s*(\[[\s\S]*?\]);", html)
+          flows_match = re.search(r"var\s+IDX_Q\s*=\s*(\[[\s\S]*?\]);", html)
+          if not dates_match or not flows_match:
+              raise RuntimeError("Source report does not contain DATA_D / IDX_Q daily net-flow series")
+          flow_dates = json.loads(dates_match.group(1))
+          flow_matrix = json.loads(flows_match.group(1))
+          if not isinstance(flow_matrix, list) or not flow_matrix or len(flow_matrix[0]) != len(flow_dates):
+              raise RuntimeError("Daily net-flow series has invalid dimensions")
+          flows = [{"d": str(d), "v": float(flow_matrix[0][i])}
+                   for i, d in enumerate(flow_dates)
+                   if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(d))
+                   and isinstance(flow_matrix[0][i], (int, float))]
+          if len(flows) < 100:
+              raise RuntimeError(f"ETF daily net-flow history too short: {len(flows)} rows")
+
           count_match = re.search(r"本表跟踪\s*(\d+)\s*只", html)
           payload = {
               "source": url,
               "etf_count": int(count_match.group(1)) if count_match else None,
               "latest_date": series[-1]["d"],
-              "series": series
+              "series": series,
+              "flows_source": url,
+              "flows_method": "按ETF份额日变化×当日单位净值汇总；正值净买入，负值净卖出",
+              "flows": flows
           }
           os.makedirs("data", exist_ok=True)
           with open("data/national-team-etf.json", "w", encoding="utf-8") as f:
