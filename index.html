@@ -61,7 +61,7 @@
 </main>
 <script>
 const API='https://push2his.eastmoney.com/api/qt/stock/kline/get',TOKEN='7eea3edcaed734bea9cbfc24409ed989';
-const charts={overview:echarts.init(document.getElementById('overview')),vxn:echarts.init(document.getElementById('vxnChart')),vix:echarts.init(document.getElementById('vixChart')),nationalTeam:echarts.init(document.getElementById('nationalTeamChart')),nationalTeamFlow:echarts.init(document.getElementById('nationalTeamFlowChart'))};
+const charts={overview:echarts.init(document.getElementById('overview')),vxn:echarts.init(document.getElementById('vxnChart')),vix:echarts.init(document.getElementById('vixChart')),nationalTeam:echarts.init(document.getElementById('nationalTeamChart'))};
 let data=[],period='10';
 async function fetchDaily(secid){const url=API+'?secid='+secid+'&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&klt=101&fqt=0&beg=20161031&end=20500101&lmt=10000&ut='+TOKEN+'&_='+Date.now();const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const json=await res.json();if(!json?.data?.klines)throw Error('指数 '+secid+' 未返回数据');return json.data.klines.map(s=>{const a=s.split(',');return {date:a[0],open:+a[1],close:+a[2],high:+a[3],low:+a[4]}}).filter(x=>x.date&&[x.open,x.close,x.high,x.low].every(v=>v>0&&Number.isFinite(v)))}
 async function fetchVolatilityDaily(symbol){const url='./data/'+symbol+'.json?v='+Date.now();const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error(symbol+'本地行情文件 HTTP '+res.status);const rows=await res.json();if(!Array.isArray(rows)||rows.length<100)throw Error(symbol+'历史数据不足：'+(rows?.length||0)+'行');return rows.filter(x=>x.date&&[x.open,x.high,x.low,x.close].every(v=>Number.isFinite(Number(v))&&Number(v)>0)).map(x=>({date:x.date,open:+x.open,high:+x.high,low:+x.low,close:+x.close})).sort((a,b)=>a.date.localeCompare(b.date))}
@@ -74,7 +74,6 @@ async function loadVolatility(){for(const item of [{symbol:'VXN',indexSymbol:'ND
 let nationalTeamRows=[],nationalTeamFlowRows=[];
 async function loadNationalTeam(){
  const st=document.getElementById('nationalTeamStatus');
- const flowSt=document.getElementById('nationalTeamFlowStatus');
  try{
   st.className='';
   st.textContent='正在读取全部跟踪ETF持仓市值及沪深300、创业板真实点位……';
@@ -93,14 +92,6 @@ async function loadNationalTeam(){
   const last=nationalTeamRows[nationalTeamRows.length-1];
   st.className='ok';
   st.textContent='加载成功：'+(holdRes.etf_count||'全部')+'只跟踪ETF；'+nationalTeamRows.length+'个共同交易日；最新日期 '+last.date+'；合计市值 '+last.value.toFixed(1)+'亿元。';
-  if(nationalTeamFlowRows.length){
-   const fLast=nationalTeamFlowRows[nationalTeamFlowRows.length-1];
-   flowSt.className='ok';
-   flowSt.textContent='每日净买卖数据已加载：'+nationalTeamFlowRows.length+'个交易日；最新 '+fLast.date+'：'+(fLast.value>=0?'净流入 ':'净流出 ')+Math.abs(fLast.value).toFixed(2)+'亿元。';
-  }else{
-   flowSt.className='err';
-   flowSt.textContent='当前数据文件尚未包含每日净流入/净流出；等待下一次后台同步。';
-  }
  }catch(e){st.className='err';st.textContent='加载失败：'+e.message+'。';flowSt.className='err';flowSt.textContent='每日净买卖数据暂不可用。'}
 }
 function renderNationalTeam(){
@@ -122,14 +113,6 @@ function renderNationalTeam(){
  ];
  charts.nationalTeam.setOption(opt,true);
 
- let flowRows=nationalTeamFlowRows;
- if(period!=='all'&&flowRows.length&&rows.length)flowRows=flowRows.filter(x=>x.date>=rows[0].date);
- const fopt=commonOption(flowRows.map(x=>x.date),55);
- fopt.grid={left:64,right:24,top:24,bottom:58};
- fopt.tooltip={trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>(Number(v)>0?'+':'')+Number(v).toFixed(2)+'亿元'};
- fopt.yAxis={type:'value',name:'净买卖（亿元）',scale:true,axisLabel:{color:'#91a0ba'},splitLine:{lineStyle:{color:'#293956',type:'dashed'}}};
- fopt.series=[{name:'每日净买入 / 净卖出',type:'bar',data:flowRows.map(x=>({value:x.value,itemStyle:{color:x.value>=0?'#ef7777':'#69c9a5'}})),barMaxWidth:14}];
- charts.nationalTeamFlow.setOption(fopt,true);
  const flowMap=new Map(nationalTeamFlowRows.map(x=>[x.date,x.value]));
  const recent=nationalTeamRows.slice(-20).reverse();
  document.querySelector('#nationalTeamTable tbody').innerHTML=recent.map((x,i)=>{
