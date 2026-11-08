@@ -22,7 +22,7 @@ jobs:
       - name: Download official CBOE daily OHLC
         run: |
           python - <<'PY'
-          import csv, io, json, urllib.request, os
+          import csv, io, json, urllib.request, urllib.parse, os
           os.makedirs("data", exist_ok=True)
           for symbol in ("VIX", "VXN"):
               url = f"https://cdn.cboe.com/api/global/us_indices/daily_prices/{symbol}_History.csv"
