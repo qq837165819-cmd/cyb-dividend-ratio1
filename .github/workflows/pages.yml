@@ -4,7 +4,7 @@ on:
     branches: [main]
   workflow_dispatch:
   workflow_run:
-    workflows: ["Update VIX and VXN data"]
+    workflows: ["Update VIX and VXN data", "Refresh national team category history"]
     types: [completed]
 permissions:
   contents: read
