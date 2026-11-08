@@ -42,19 +42,11 @@
 
 
 <section class="panel">
-<div class="section-title">国家队跟踪ETF总持仓市值 vs 沪深300 / 创业板走势</div>
-<div class="hint">橙线：全部跟踪ETF合计持仓市值（亿元，左轴）；蓝线：沪深300真实收盘点位；紫线：创业板指真实收盘点位（右轴）。指数不做归一化，按源报表每日更新。</div>
-<div id="nationalTeamChart" class="chart"></div>
-<div class="hint" id="nationalTeamStatus">正在读取全部跟踪ETF持仓市值及指数日线……</div>
-<div class="section-title" style="margin-top:18px">国家队ETF持仓与每日净流入 / 净流出｜合并明细表</div>
-<div class="hint">按日期逐行合并：同时显示29只跟踪ETF合计持仓市值、持仓市值较前日变化、每日净申购/赎回估算，以及沪深300和创业板指真实点位。红色代表净流入，绿色代表净流出；单位均为亿元（指数点位除外）。</div>
-<div style="overflow-x:auto;margin-top:10px">
-<table id="nationalTeamTable" style="width:100%;border-collapse:collapse;min-width:760px;font-size:12px">
-<thead><tr style="color:#91a0ba;text-align:right;border-bottom:1px solid #344764"><th style="padding:8px;text-align:left">日期</th><th style="padding:8px">ETF合计持仓市值（亿元）</th><th style="padding:8px">每日净流入 / 净流出（亿元）</th><th style="padding:8px">资金方向</th><th style="padding:8px">持仓市值日变化（亿元）</th><th style="padding:8px">沪深300真实点位</th><th style="padding:8px">创业板指真实点位</th></tr></thead>
-<tbody><tr><td colspan="7" style="padding:12px;color:#91a0ba">等待数据</td></tr></tbody>
-</table>
-</div>
-<div class="hint" style="margin-top:10px">统计口径：直接采用你提供的“国家队ETF每日净买入/净卖出”报表中累计持仓金额曲线，汇总该报表当期纳入的全部ETF（当前源网页已扩展至29只，名单变化会自动跟随）。该金额为跟踪ETF份额×单位净值的合计市值，是国家队资金动向的代理观察指标，不等于中央汇金实时、完整的真实持仓；市值日变化同时受ETF申赎和价格涨跌影响，不可直接视为净买入金额。每日净申购/赎回请以原网页明细为准。</div>
+<div class="section-title">国家队ETF持仓走势 + 每日资金净流入 / 净流出</div>
+<div class="hint">上方主图：全部跟踪ETF合计持仓市值（亿元，左轴），并对照沪深300、创业板指真实点位（右轴）。下方副图：每日净申购/赎回估算柱状图，红柱为净流入、绿柱为净流出。主图与资金流副图共用日期轴，缩放和拖动同步。</div>
+<div id="nationalTeamChart" class="chart" style="height:500px"></div>
+<div class="hint" id="nationalTeamStatus">正在读取全部跟踪ETF持仓市值、每日资金流及指数日线……</div>
+<div class="hint" style="margin-top:10px">统计口径：持仓市值为跟踪ETF份额×单位净值的合计市值，是国家队资金动向的代理观察指标，不等于中央汇金实时、完整的真实持仓；市值日变化同时受ETF申赎和价格涨跌影响，不可直接视为净买入金额。下方柱状图采用原始每日净申购/赎回估算数据，单位为亿元。</div>
 </section>
 <div id="status">正在加载历史日线……</div>
 <div class="foot">数据源：创业板指与中证红利使用东方财富公开历史行情接口；VXN 与 VIX 使用 CBOE 官方历史日线；纳斯达克100与标普500指数使用 Yahoo Finance 历史日线，由 GitHub 后台同步。恐慌指数为隐含波动率指数，不是指数价格，也不能单独作为买卖信号。接口限流、跨域策略或网络环境可能影响加载；页面不构成投资建议。</div>
@@ -96,37 +88,51 @@ async function loadNationalTeam(){
 }
 function renderNationalTeam(){
  let rows=nationalTeamRows;
- if(period!=='all'&&rows.length){const d=new Date(rows[rows.length-1].date+'T12:00:00');d.setFullYear(d.getFullYear()-Number(period));const cutoff=d.toISOString().slice(0,10);rows=rows.filter(x=>x.date>=cutoff)}
+ if(period!=='all'&&rows.length){
+  const d=new Date(rows[rows.length-1].date+'T12:00:00');
+  d.setFullYear(d.getFullYear()-Number(period));
+  const cutoff=d.toISOString().slice(0,10);
+  rows=rows.filter(x=>x.date>=cutoff);
+ }
  if(!rows.length)return;
- const opt=commonOption(rows.map(x=>x.date),55);
- opt.grid={left:76,right:76,top:38,bottom:58};
- opt.legend={top:2,textStyle:{color:'#cbd5e1'}};
- opt.tooltip={trigger:'axis',axisPointer:{type:'cross'},valueFormatter:v=>Number(v).toFixed(2)};
- opt.yAxis=[
-  {type:'value',scale:true,name:'ETF合计市值（亿元）',nameTextStyle:{color:'#f5ad55'},axisLabel:{color:'#f5ad55'},splitLine:{lineStyle:{color:'#293956',type:'dashed'}}},
-  {type:'value',scale:true,name:'指数真实点位',position:'right',nameTextStyle:{color:'#48c8e8'},axisLabel:{color:'#48c8e8'},splitLine:{show:false}}
- ];
- opt.series=[
-  {name:'全部跟踪ETF合计市值（亿元）',type:'line',yAxisIndex:0,data:rows.map(x=>x.value),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#f5ad55'}},
-  {name:'沪深300真实点位',type:'line',yAxisIndex:1,data:rows.map(x=>+x.csi.toFixed(2)),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#48c8e8'}},
-  {name:'创业板指真实点位',type:'line',yAxisIndex:1,data:rows.map(x=>+x.cyb.toFixed(2)),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#b58cff'}}
- ];
- charts.nationalTeam.setOption(opt,true);
-
+ const dates=rows.map(x=>x.date);
  const flowMap=new Map(nationalTeamFlowRows.map(x=>[x.date,x.value]));
- const recent=nationalTeamRows.slice(-20).reverse();
- document.querySelector('#nationalTeamTable tbody').innerHTML=recent.map((x,i)=>{
-  const original=nationalTeamRows.length-1-i;
-  const prev=original>0?nationalTeamRows[original-1].value:null;
-  const delta=prev===null?null:x.value-prev;
-  const deltaText=delta===null?'—':(delta>0?'+':'')+delta.toFixed(1);
-  const deltaColor=delta===null?'#91a0ba':delta>=0?'#ef7777':'#69c9a5';
-  const flow=flowMap.get(x.date);
-  const flowText=flow===undefined?'—':((flow>=0?'+':'')+flow.toFixed(2));
-  const flowColor=flow===undefined?'#91a0ba':flow>=0?'#ef7777':'#69c9a5';
-  const direction=flow===undefined?'—':(flow>=0?'净流入':'净流出');
-  return '<tr style="border-bottom:1px solid #293956;text-align:right"><td style="padding:8px;text-align:left">'+x.date+'</td><td style="padding:8px">'+x.value.toFixed(1)+'</td><td style="padding:8px;color:'+flowColor+';font-weight:600">'+flowText+'</td><td style="padding:8px;color:'+flowColor+'">'+direction+'</td><td style="padding:8px;color:'+deltaColor+'">'+deltaText+'</td><td style="padding:8px">'+x.csi.toFixed(2)+'</td><td style="padding:8px">'+x.cyb.toFixed(2)+'</td></tr>';
- }).join('')||'<tr><td colspan="7" style="padding:12px;color:#91a0ba">尚无数据</td></tr>';
+ const flowValues=rows.map(x=>flowMap.has(x.date)?flowMap.get(x.date):null);
+ const opt={
+  animation:false,
+  backgroundColor:'transparent',
+  legend:{top:2,textStyle:{color:'#cbd5e1'}},
+  tooltip:{
+   trigger:'axis',
+   axisPointer:{type:'cross',link:[{xAxisIndex:[0,1]}]},
+   valueFormatter:v=>v===null||v===undefined?'暂无数据':Number(v).toFixed(2)
+  },
+  axisPointer:{link:[{xAxisIndex:[0,1]}]},
+  grid:[
+   {left:76,right:76,top:42,height:'55%'},
+   {left:76,right:76,top:'73%',height:'16%'}
+  ],
+  xAxis:[
+   {type:'category',gridIndex:0,data:dates,boundaryGap:false,axisLabel:{show:false},axisTick:{show:false},axisLine:{lineStyle:{color:'#52627a'}}},
+   {type:'category',gridIndex:1,data:dates,boundaryGap:true,axisLabel:{color:'#91a0ba',hideOverlap:true},axisTick:{show:false},axisLine:{lineStyle:{color:'#52627a'}}}
+  ],
+  yAxis:[
+   {type:'value',gridIndex:0,scale:true,name:'ETF合计市值（亿元）',nameTextStyle:{color:'#f5ad55'},axisLabel:{color:'#f5ad55'},splitLine:{lineStyle:{color:'#293956',type:'dashed'}}},
+   {type:'value',gridIndex:0,scale:true,name:'指数真实点位',position:'right',nameTextStyle:{color:'#48c8e8'},axisLabel:{color:'#48c8e8'},splitLine:{show:false}},
+   {type:'value',gridIndex:1,scale:true,name:'每日净流入 / 净流出（亿元）',nameTextStyle:{color:'#91a0ba'},nameGap:8,axisLabel:{color:'#91a0ba'},splitLine:{lineStyle:{color:'#293956',type:'dashed'}},splitNumber:3}
+  ],
+  dataZoom:[
+   {type:'inside',xAxisIndex:[0,1],filterMode:'none'},
+   {type:'slider',xAxisIndex:[0,1],height:14,bottom:5,filterMode:'none'}
+  ],
+  series:[
+   {name:'全部跟踪ETF合计持仓市值（亿元）',type:'line',xAxisIndex:0,yAxisIndex:0,data:rows.map(x=>x.value),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#f5ad55'}},
+   {name:'沪深300真实点位',type:'line',xAxisIndex:0,yAxisIndex:1,data:rows.map(x=>+x.csi.toFixed(2)),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#48c8e8'}},
+   {name:'创业板指真实点位',type:'line',xAxisIndex:0,yAxisIndex:1,data:rows.map(x=>+x.cyb.toFixed(2)),symbol:'none',showSymbol:false,lineStyle:{width:2,color:'#b58cff'}},
+   {name:'每日净流入 / 净流出（亿元）',type:'bar',xAxisIndex:1,yAxisIndex:2,data:flowValues,barMaxWidth:12,itemStyle:{color:p=>p.value>=0?'#ef5350':'#26a69a'},markLine:{silent:true,symbol:'none',lineStyle:{color:'#91a0ba',type:'dashed',opacity:.65},data:[{yAxis:0}]}}
+  ]
+ };
+ charts.nationalTeam.setOption(opt,true);
 }
 function visibleData(){if(period==='all')return data;const d=new Date(data[data.length-1].date+'T12:00:00');d.setFullYear(d.getFullYear()-Number(period));const s=d.toISOString().slice(0,10);const i=data.findIndex(x=>x.date>=s);return data.slice(Math.max(0,i))}
 function commonOption(dates,gridBottom=48){return {animation:false,tooltip:{trigger:'axis'},grid:{left:58,right:18,top:18,bottom:gridBottom},xAxis:{type:'category',data:dates,axisLabel:{color:'#91a0ba',hideOverlap:true}},dataZoom:[{type:'inside'},{type:'slider',height:15,bottom:8}],backgroundColor:'transparent'}}
